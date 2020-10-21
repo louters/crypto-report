@@ -22,7 +22,7 @@
     * [] Fiat
     * [] Digital Asset
 
-2. Get Balance for each and all positions
+2. Get Balance(value and amount) for each and all positions
     * [] Fiat
     * [] Digital Asset
     * [] Tokens
@@ -31,7 +31,7 @@
 1. Get Close Price in Base Asset for all positions
     * [] Fiat
     * [] Digital Asset
-2. Get Balance for each and all positions
+2. Get Balance (value and amount) for each and all positions
     * [] Fiat
     * [] Digital Asset
     * [] Tokens
