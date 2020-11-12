@@ -44,7 +44,7 @@ class Api(ABC):
 
     def _nonce(self) -> int:
         """ Nonce counter."""
-        return int(10000 * time.time())
+        return int(1000000 * time.time())
 
     @abstractmethod
     def _sign(self, data: dict, urlpath: str) -> str:
@@ -176,6 +176,11 @@ class Kraken(Api):
 
         Note: Potential issues when multiple pairs in one query, so base_fiat
         and base_crypto queries are called separately.
+
+        Args:
+        - ticker: Ticker of digital asset
+        - base_fiat: currency in which the holdings are reported
+        - base_crypto: digital asset in which the holdings are reported
         """
         # Handle when ticker is fiat
         print(f'Ticker {ticker} with {base_fiat} and {base_crypto}')
@@ -222,9 +227,8 @@ class Kraken(Api):
 
 
 class Bitfinex(Api):
-    """ Maintain a single session betwen this machine and Kraken."""
-    pub_url = "https://api-pub.bitfinex.com/v2/"
-    priv_url = "https://api.bitfinex.com/v2/"
+    """ Maintain a single session betwen this machine and Bitfinex."""
+    uri = "https://api-pub.bitfinex.com/v2/"
     public_methods = (
                    'platform/status',
                    'tickers',
@@ -241,12 +245,133 @@ class Bitfinex(Api):
                    'calc/trade/avg',
                    'calc/fx'
                    )
+    'Crytpo that will be ignored, to keep updated'
+    shitcoins = ('ATD', 'ADD', 'MTO', 'MQX', 'IQX')
 
-    def _sign(self, data: dict, urlpath: str) -> str:
+    def _sign(self, data: dict, urlpath: str) -> dict:
         """ Return signature digest according to Bitfinex's scheme.
 
         Args:
         - data: API request parameters
         - urlpath: API URL path w/o uri
         """
-        pass
+        nonce = str(self._nonce())
+        signature = f'/api/v2/{urlpath}{nonce}{data}'
+        h = hmac.new(self.secret.encode('utf8'), signature.encode('utf8'),
+                     hashlib.sha384)
+        signature = h.hexdigest()
+
+        return {
+            "bfx-nonce": nonce,
+            "bfx-apikey": self.key,
+            "bfx-signature": signature
+            }
+
+    def post(self, method: str, data: dict = {}, params: str = "") -> list:
+        """ Signed POST query to Bitfinex's API.
+
+        Args:
+        - method: API URL path w/o uri
+        - data: API request mandatory parameters
+        - params: API request optional parameters
+        """
+        url = f'{Bitfinex.uri}{method}'
+        data = json.dumps(data)
+        headers = self._sign(data, method)
+        headers['content-type'] = 'application/json'
+        response = self.session.post(url + params, headers=headers, data=data)
+        if response.status_code not in (200, 201, 202):
+            response.raise_for_status()
+        return json.loads(response.text)
+
+    def fetch(self, method: str, params: str = "") -> list:
+        """ GET query to Bitfinex's API.
+
+        Args:
+        - method: API url w/o uri
+        - params: API request optional parameters
+        """
+        url = f'{Bitfinex.uri}{method}{params}'
+        response = self.session.get(url)
+        if response.status_code not in (200, 201, 202):
+            response.raise_for_status()
+        return json.loads(response.text)
+
+    def get_balance(self, base_fiat: str = '', base_crypto: str = '') -> None:
+        """ Get balance of holdings from a API source.
+
+        Args:
+        - base_fiat: currency in which the holdings are reported
+        - base_crypto: digital asset in which the holdings are reported
+        """
+        # Get wallets
+        method = 'auth/r/wallets'
+        res = self.post(method)
+        for wallet in res:
+            if wallet[1] not in Bitfinex.shitcoins:
+                self.balance[wallet[1]] = [float(wallet[2])]
+
+        self.base_fiat = base_fiat
+        self.base_crypto = base_crypto
+
+        if base_fiat or base_crypto:
+            print('Bitfinexx - Getting tickers...')
+            for ticker in self.balance:
+                # Get prices
+                prices = self.get_price(ticker,
+                                        self.base_fiat,
+                                        self.base_crypto
+                                        )
+                prices = [float(price) for price in prices]
+                # Convert holding to fiat/crypto amount
+                self.balance[ticker].append([
+                                           prices,
+                                           list(np.array(self.balance[ticker])
+                                                * prices)
+                                                ])
+
+    def get_price(self, ticker: str, base_fiat: str = "",
+                  base_crypto: str = "") -> tuple:
+        """ Return last trade price of ticker in base fiat or crypto.
+
+        Args:
+        - ticker: Ticker of digital asset
+        - base_fiat: currency in which the holdings are reported
+        - base_crypto: digital asset in which the holdings are reported
+        """
+        # Handle when ticker is fiat
+        print(f'Ticker {ticker} with {base_fiat} and {base_crypto}')
+        if ticker in ('EUR', 'USD'):
+            if base_crypto:
+                return 1, 1
+            else:
+                return 1,
+
+        # Fetch price
+        try:
+            method = f'ticker/t{ticker}{base_fiat}'
+            fiat_price = self.fetch(method)[6]
+        # Handle case where ticker not available in base_fiat
+        except requests.exceptions.HTTPError:
+            if base_crypto != 'USD':
+                fiat_price = (self.fetch(f'ticker/t{ticker}USD')[6] /
+                              self.fetch(f'ticker/t{base_fiat}USD')[0])
+            else:
+                raise requests.exceptions.HTTPError
+
+        # Just fiat value asked
+        if not base_crypto:
+            return fiat_price,
+
+        if base_crypto == ticker:
+            return (fiat_price, 1)
+
+        if base_crypto == 'ETH' and ticker == 'BTC':
+            method = f'ticker/t{base_crypto}{ticker}'
+            crypto_price = 1/float(self.fetch(method)[7])
+
+        else:
+            method = f'ticker/t{ticker}{base_crypto}'
+            crypto_price = self.fetch(method)[7]
+
+        return (fiat_price, crypto_price)
