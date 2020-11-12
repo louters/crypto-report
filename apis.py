@@ -33,7 +33,7 @@ class Api(ABC):
             self.key = self.secret = ''
 
     @abstractmethod
-    def get_balance(self, base_fiat: str = '', base_crypto: str = '') -> None:
+    def get_balance(self, base_fiat: str = '', base_crypto: str = '') -> dict:
         """ Get balance of holdings from an API source.
 
         Args:
@@ -127,7 +127,7 @@ class Kraken(Api):
         sig_digest = base64.b64encode(sig.digest())
         return sig_digest.decode()
 
-    def get_balance(self, base_fiat: str = '', base_crypto: str = '') -> None:
+    def get_balance(self, base_fiat: str = '', base_crypto: str = '') -> dict:
         """ Get balance of holdings from an API source.
 
         Args:
@@ -168,6 +168,7 @@ class Kraken(Api):
                                       ])
 
         self.balance = balance
+        return self.balance
 
     def get_price(
                  self, ticker: str, base_fiat: str, base_crypto: str = ''
@@ -297,7 +298,7 @@ class Bitfinex(Api):
             response.raise_for_status()
         return json.loads(response.text)
 
-    def get_balance(self, base_fiat: str = '', base_crypto: str = '') -> None:
+    def get_balance(self, base_fiat: str = '', base_crypto: str = '') -> dict:
         """ Get balance of holdings from a API source.
 
         Args:
@@ -329,6 +330,8 @@ class Bitfinex(Api):
                                            list(np.array(self.balance[ticker])
                                                 * prices)
                                                 ])
+
+        return self.balance
 
     def get_price(self, ticker: str, base_fiat: str = "",
                   base_crypto: str = "") -> tuple:
