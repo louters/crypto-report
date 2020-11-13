@@ -371,10 +371,10 @@ class Bitfinex(Api):
 
         if base_crypto == 'ETH' and ticker == 'BTC':
             method = f'ticker/t{base_crypto}{ticker}'
-            crypto_price = 1/float(self.fetch(method)[7])
+            crypto_price = 1/float(self.fetch(method)[6])
 
         else:
             method = f'ticker/t{ticker}{base_crypto}'
-            crypto_price = self.fetch(method)[7]
+            crypto_price = self.fetch(method)[6]
 
         return (fiat_price, crypto_price)
