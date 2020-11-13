@@ -378,3 +378,28 @@ class Bitfinex(Api):
             crypto_price = self.fetch(method)[6]
 
         return (fiat_price, crypto_price)
+
+
+class Etherscan(Api):
+    """ Maintain a single session between this machine and Etherscan. """
+    uri = "https://api.etherscan.io/api"
+
+    def _sign(self):
+        """ Not applicable for Etherscan API """
+        pass
+
+    def get_balance(self) -> dict:
+        """ Get amount of ETH at address <addr>."""
+        params = {
+               'module': 'account',
+               'action': 'balance',
+               'address': self.secret,
+               'tag': 'latest',
+               'apikey': self.key
+               }
+        response = self.session.post(Etherscan.uri, params)
+        if not response.ok:
+            response.raise_for_status()
+
+        self.balance['ETH'] = [float(json.loads(response.text)['result'])/1e18]
+        return self.balance

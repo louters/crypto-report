@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-from apis import Kraken, Bitfinex
+from apis import Kraken, Bitfinex, Etherscan
 
 BASE_FIATS = {'USD', 'EUR', 'GBP'}
 BASE_CRYPTOS = {'BTC', 'ETH'}
-API_SOURCES = {'Kraken', 'Bitfinex'}
+API_SOURCES = {'Kraken', 'Bitfinex', 'Etherscan'}
 
 
 class Portfolio(object):
@@ -35,8 +35,12 @@ class Portfolio(object):
     def get_balance(self):
         ''' Get balance of holdings from different APIs.'''
         for api_source in self.api_sources:
-            self.balance[type(api_source).__name__] = api_source.get_balance(
-                                       self.base_fiat, self.base_crypto)
+            if type(api_source).__name__ != 'Etherscan':
+                self.balance[type(api_source).__name__] = (
+                    api_source.get_balance(self.base_fiat, self.base_crypto))
+            else:
+                self.balance[type(api_source).__name__] = (
+                    api_source.get_balance())
 
     def get_last(self):
         pass
