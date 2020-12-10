@@ -44,7 +44,7 @@ class Api(ABC):
 
     def _nonce(self) -> int:
         """ Nonce counter."""
-        return int(1000000 * time.time())
+        return int(1000 * time.time())
 
     @abstractmethod
     def _sign(self, data: dict, urlpath: str) -> str:
