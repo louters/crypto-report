@@ -22,15 +22,28 @@ class Api(ABC):
         self.session = requests.Session()
         self.balance = {}
 
-    def load_key(self, path: str) -> None:
-        """ Load key and secret from file."""
+    def load_key(self, path: str, addr_path: str = '') -> None:
+        """ Load key and secret or address from file(s).
+
+        Args: 
+        - path: Path to file with API public key and, if an exchange, secret
+        - (optional) addr_path: Path to file with addresses (only applicable
+          to etherscan and blockchain explorer)
+        """
         try:
             with open(path) as f:
                 self.key = f.readline().strip()
-                self.secret = f.readline().strip()
+
+                if not addr_path:
+                    self.secret = f.readline().strip()
+
+            if addr_path:
+                with open(addr_path) as f:
+                    self.address = f.readline().strip()
+                
         except FileNotFoundError:
             print('Warning: File with key/secret not found')
-            self.key = self.secret = ''
+            self.key = self.secret = self.address = ''
 
     @abstractmethod
     def get_balance(self, base_fiat: str = '', base_crypto: str = '') -> dict:
@@ -378,3 +391,42 @@ class Bitfinex(Api):
             crypto_price = self.fetch(method)[6]
 
         return (fiat_price, crypto_price)
+
+
+class Etherscan(Api):
+    """ Maintain a single session between this machine and Etherscan. """
+    uri = "https://api.etherscan.io/api"
+
+    def __init__(self, key_path: str = 'etherscan.key', addr_path: str = 'eth_addr') -> None:
+        """ Initialize session w/ API and load key and ETH addresses.
+
+        Note: At the moment, it allows only one Ethereum address to be loaded.
+
+        Args:
+        - key_path: Path to file with API key.
+        - addr_path: Path to file with Ethereum address."""
+
+        self.load_key(key_path, addr_path)
+        self.session = requests.Session()
+        self.balance = {'ETH': 0}
+
+    def _sign(self):
+        """ Not applicable for Etherscan API """
+        pass
+
+    def get_balance(self) -> dict:
+        """ Get amount of ETH at address <addr>."""
+        params = {
+               'module': 'account',
+               'action': 'balance',
+               'address': self.address,
+               'tag': 'latest',
+               'apikey': self.key
+               }
+
+        response = self.session.post(Etherscan.uri, params)
+        if not response.ok:
+            response.raise_for_status()
+
+        self.balance['ETH'] = [float(json.loads(response.text)['result'])/1e18]
+        return self.balance

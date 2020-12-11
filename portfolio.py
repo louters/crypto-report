@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-from apis import Kraken, Bitfinex
+from apis import Kraken, Bitfinex, Etherscan
 
 BASE_FIATS = {'USD', 'EUR', 'GBP'}
 BASE_CRYPTOS = {'BTC', 'ETH'}
-API_SOURCES = {'Kraken', 'Bitfinex'}
+API_SOURCES = {'Kraken', 'Bitfinex', 'Etherscan'}
 
 
 class Portfolio(object):
@@ -27,7 +27,14 @@ class Portfolio(object):
 
         for api_source in apis:
             assert api_source[0].capitalize() in API_SOURCES
-        api_sources = [eval(x[0].capitalize())(x[1]) for x in apis]
+
+        # Initialize each API
+        api_sources = [eval(api[0].capitalize())(api[1]) for api in apis if len(api) == 2]
+
+        # Case where constructor has two files
+        for api in apis:
+            if len(api) == 3:
+                api_sources.append(eval(api[0].capitalize())(api[1], api[2]))
         self.api_sources = api_sources
 
         self.balance = {}
@@ -35,8 +42,12 @@ class Portfolio(object):
     def get_balance(self):
         ''' Get balance of holdings from different APIs.'''
         for api_source in self.api_sources:
-            self.balance[type(api_source).__name__] = api_source.get_balance(
-                                       self.base_fiat, self.base_crypto)
+            if type(api_source).__name__ != 'Etherscan':
+                self.balance[type(api_source).__name__] = (
+                    api_source.get_balance(self.base_fiat, self.base_crypto))
+            else:
+                self.balance[type(api_source).__name__] = (
+                    api_source.get_balance())
 
     def get_last(self):
         pass
