@@ -6,35 +6,31 @@
 * positions held across multiple exchanges are not reported through a unique interface; and
 * exchanges do not provide a balance using a Digital Asset as Base Currency.
 
-### Requirements
+# Requirements
 ## Config
 1. Supported exchanges/protocol addresses:
-    * [] Kraken
-    * [] Bitfinex
+    * [x] Kraken
+    * [x] Bitfinex
     * [] Bitcoin addresses
-    * [] Ethereum addresses
+    * [x] Ethereum addresses
 2. Define Base Asset(s) for your report
-    * [] Fiat (mandatory): USD, EUR, GBP
-    * [] Digital Asset (optional): BTC or ETH only.
+    * [x] Fiat (mandatory): USD, EUR, GBP
+    * [x] Digital Asset (optional): BTC or ETH only.
 
 ## Update
-1. Get Last Price in Base Asset for all positions
-    * [] Fiat
-    * [] Digital Asset
-
-2. Get Balance (value and amount) for each and all positions
-    * [] Fiat
-    * [] Digital Asset
-    * [] Tokens
+1. Get Balance (value and amount) for each and all positions
+    * [x] Fiat
+    * [x] Digital Asset
+    * [x] Tokens
 
 ## Report
 1. Get Close Price in Base Asset for all positions
-    * [] Fiat
-    * [] Digital Asset
+    * [x] Fiat
+    * [x] Digital Asset
 2. Get Balance (value and amount) for each and all positions
-    * [] Fiat
-    * [] Digital Asset
-    * [] Tokens
+    * [x] Fiat
+    * [x] Digital Asset
+    * [x] Tokens
 3. Provide Portfolio Risk Metrics
     * [] Worst-day historical VaR
     * [] 1 and 7-day VaR
@@ -45,7 +41,7 @@
 2. Store historical close data
 3. Always get ETH and BTC price in Base Asset(s)
 
-### Open questions
+# Open questions
 ## Config
 1. Add other exchanges, notably:
     * Binance
