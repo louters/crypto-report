@@ -164,7 +164,6 @@ class Kraken(Api):
         balance.pop('KFEE', None)
 
         if base_fiat or base_crypto:
-            print('Kraken - Getting tickers...')
             for ticker in balance:
                 # Get prices
                 prices = self.get_price(
@@ -197,7 +196,6 @@ class Kraken(Api):
         - base_crypto: digital asset in which the holdings are reported
         """
         # Handle when ticker is fiat
-        print(f'Ticker {ticker} with {base_fiat} and {base_crypto}')
         if ticker in ('EUR', 'USD'):
             if base_crypto:
                 return 1, 1
@@ -329,7 +327,6 @@ class Bitfinex(Api):
         self.base_crypto = base_crypto
 
         if base_fiat or base_crypto:
-            print('Bitfinexx - Getting tickers...')
             for ticker in self.balance:
                 # Get prices
                 prices = self.get_price(ticker,
@@ -356,7 +353,6 @@ class Bitfinex(Api):
         - base_crypto: digital asset in which the holdings are reported
         """
         # Handle when ticker is fiat
-        print(f'Ticker {ticker} with {base_fiat} and {base_crypto}')
         if ticker in ('EUR', 'USD'):
             if base_crypto:
                 return 1, 1
