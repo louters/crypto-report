@@ -7,7 +7,6 @@ import hmac
 import time
 import urllib.parse
 
-import numpy as np
 import requests
 
 
@@ -172,13 +171,8 @@ class Kraken(Api):
                                         self.base_crypto
                                         )
                 prices = [float(price) for price in prices]
-                # Convert holding to fiat/crypto amount
-                balance[ticker].append([
-                                      prices,
-                                      list(np.array(balance[ticker]) *
-                                           prices)
-                                      ])
-
+                balance[ticker] = balance[ticker] + prices
+                                           
         self.balance = balance
         return self.balance
 
@@ -334,12 +328,7 @@ class Bitfinex(Api):
                                         self.base_crypto
                                         )
                 prices = [float(price) for price in prices]
-                # Convert holding to fiat/crypto amount
-                self.balance[ticker].append([
-                                           prices,
-                                           list(np.array(self.balance[ticker])
-                                                * prices)
-                                                ])
+                self.balance[ticker] = self.balance[ticker] + prices
 
         return self.balance
 
