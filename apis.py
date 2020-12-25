@@ -7,10 +7,13 @@ import hmac
 import time
 import urllib.parse
 
+import pandas as pd
 import requests
 
 
 class Api(ABC):
+    col_names = ['Asset', 'Amount', 'price_f', 'price_c']
+
     def __init__(self, path: str = '') -> None:
         """ Initialize session w/ API and load optional keys.
 
@@ -19,7 +22,7 @@ class Api(ABC):
         """
         self.load_key(path)
         self.session = requests.Session()
-        self.balance = {}
+        self.balance = None
 
     def load_key(self, path: str, addr_path: str = '') -> None:
         """ Load key and secret or address from file(s).
@@ -44,8 +47,19 @@ class Api(ABC):
             print('Warning: File with key/secret not found')
             self.key = self.secret = self.address = ''
 
-    @abstractmethod
-    def get_balance(self, base_fiat: str = '', base_crypto: str = '') -> dict:
+    @staticmethod
+    def _balance_to_dataframe(balance: dict, api_name: str) -> pd.DataFrame:
+        '''Convert dictionary balance into a pandas dataframe.'''
+        df = pd.DataFrame.from_dict(balance, orient = 'index')
+        df.reset_index(inplace = True)
+        df.columns = Api.col_names
+        df['API'] = api_name
+        df = df[['API'] + Api.col_names]
+
+        return df
+        
+        
+    def get_balance(self, base_fiat: str, base_crypto: str = '') -> pd.DataFrame:
         """ Get balance of holdings from an API source.
 
         Args:
@@ -139,7 +153,7 @@ class Kraken(Api):
         sig_digest = base64.b64encode(sig.digest())
         return sig_digest.decode()
 
-    def get_balance(self, base_fiat: str = '', base_crypto: str = '') -> dict:
+    def get_balance(self, base_fiat: str = '', base_crypto: str = '') -> pd.DataFrame:
         """ Get balance of holdings from an API source.
 
         Args:
@@ -173,7 +187,8 @@ class Kraken(Api):
                 prices = [float(price) for price in prices]
                 balance[ticker] = balance[ticker] + prices
                                            
-        self.balance = balance
+        self.balance = Api._balance_to_dataframe(balance, 'Kraken')
+
         return self.balance
 
     def get_price(
@@ -194,7 +209,7 @@ class Kraken(Api):
             if base_crypto:
                 return 1, 1
             else:
-                return 1,
+                return 1, 0
 
         # Clean staking tickers
         if ticker.endswith('.S'):
@@ -206,7 +221,7 @@ class Kraken(Api):
 
         # Just fiat value asked
         if not base_crypto:
-            return fiat_price,
+            return fiat_price, 0
 
         if base_crypto == ticker:
             return (fiat_price, 1)
@@ -313,26 +328,29 @@ class Bitfinex(Api):
         # Get wallets
         method = 'auth/r/wallets'
         res = self.post(method)
+        balance = {}
         for wallet in res:
             if wallet[1] not in Bitfinex.shitcoins:
-                self.balance[wallet[1]] = [float(wallet[2])]
+                balance[wallet[1]] = [float(wallet[2])]
 
         self.base_fiat = base_fiat
         self.base_crypto = base_crypto
 
         if base_fiat or base_crypto:
-            for ticker in self.balance:
+            for ticker in balance:
                 # Get prices
                 prices = self.get_price(ticker,
                                         self.base_fiat,
                                         self.base_crypto
                                         )
                 prices = [float(price) for price in prices]
-                self.balance[ticker] = self.balance[ticker] + prices
+                balance[ticker] = balance[ticker] + prices
+
+        self.balance = Api._balance_to_dataframe(balance, 'Bitfinex')
 
         return self.balance
 
-    def get_price(self, ticker: str, base_fiat: str = "",
+    def get_price(self, ticker: str, base_fiat: str,
                   base_crypto: str = "") -> tuple:
         """ Return last trade price of ticker in base fiat or crypto.
 
@@ -346,7 +364,7 @@ class Bitfinex(Api):
             if base_crypto:
                 return 1, 1
             else:
-                return 1,
+                return 1, 0
 
         # Fetch price
         try:
@@ -362,7 +380,7 @@ class Bitfinex(Api):
 
         # Just fiat value asked
         if not base_crypto:
-            return fiat_price,
+            return fiat_price, 0
 
         if base_crypto == ticker:
             return (fiat_price, 1)
@@ -393,13 +411,12 @@ class Etherscan(Api):
 
         self.load_key(key_path, addr_path)
         self.session = requests.Session()
-        self.balance = {'ETH': 0}
 
     def _sign(self):
         """ Not applicable for Etherscan API """
         pass
 
-    def get_balance(self) -> dict:
+    def get_balance(self) -> pd.DataFrame:
         """ Get amount of ETH at address <addr>."""
         params = {
                'module': 'account',
@@ -413,5 +430,8 @@ class Etherscan(Api):
         if not response.ok:
             response.raise_for_status()
 
-        self.balance['ETH'] = [float(json.loads(response.text)['result'])/1e18]
+        balance = {}
+        balance['ETH'] = [float(json.loads(response.text)['result'])/1e18] + [0, 0]
+
+        self.balance = Api._balance_to_dataframe(balance, 'Etherscan')
         return self.balance
