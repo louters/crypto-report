@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+import pandas as pd
+
 from apis import Kraken, Bitfinex, Etherscan
 from datetime import datetime
 
@@ -8,7 +10,6 @@ API_SOURCES = {'Kraken', 'Bitfinex', 'Etherscan'}
 
 
 class Portfolio(object):
-
     def __init__(self, apis: set, base_fiat: str, base_crypto: str = ''):
         ''' Initialize Portfolio with basic information and checking.
 
@@ -29,7 +30,7 @@ class Portfolio(object):
         for api_source in apis:
             assert api_source[0].capitalize() in API_SOURCES
 
-        # Initialize each API
+        # Initialize each API (one file only)
         api_sources = [eval(api[0].capitalize())(api[1]) for api in apis if len(api) == 2]
 
         # Case where constructor has two files
@@ -38,45 +39,53 @@ class Portfolio(object):
                 api_sources.append(eval(api[0].capitalize())(api[1], api[2]))
         self.api_sources = api_sources
 
-        self.balance = {}
+        self.balance = pd.DataFrame(columns = ['Asset', 'Amount', 'price_f', 'price_c'])
 
-    def get_balance(self) -> None:
-        ''' Get balance of holdings from different APIs.'''
-        for api_source in self.api_sources:
-            if type(api_source).__name__ != 'Etherscan':
-                self.balance[type(api_source).__name__] = (
-                    api_source.get_balance(self.base_fiat, self.base_crypto))
-            else:
-                self.balance[type(api_source).__name__] = (
-                    api_source.get_balance())
-
-    def get_totals(self, ref_api: str='') -> None:
-        ''' Get totals in base fiat and base digital asset.
+    def get_balance(self, ref_api: str='') -> pd.DataFrame:
+        ''' Get balance of holdings from different APIs.
 
         Args:
-        - ref_api: For non-exchange APIs, the price from ref_api will be used.
+        - ref_api: For non-exchange APIs, the prices from ref_api will be used.
         '''
-        self.total_fiat = self.total_crypto = 0
-
-        assert self.balance
-        for api, holdings in self.balance.items():
-            if api != 'Etherscan':
-                for holding in holdings:
-                    self.total_fiat += holdings[holding][1][1][0]
-
-                    if self.base_crypto:
-                        self.total_crypto += holdings[holding][1][1][1]
- 
+        
+        # Get balance for different APIs
+        for api_source in self.api_sources:
+            # Case for exchanges
+            if api_source.__class__.__name__ != 'Etherscan':
+                self.balance = pd.merge(
+                        api_source.get_balance(self.base_fiat, self.base_crypto),
+                        self.balance, how='outer')
+            # Case for BTC/ETH addresses
             else:
-                self.total_fiat += (holdings['ETH'][0]
-                                   * self.balance[ref_api]['ETH'][1][0][0])
+                self.balance = pd.merge(api_source.get_balance(), self.balance,
+                                        how='outer')
 
-                if self.base_crypto:
-                    self.total_crypto += holdings['ETH'][0]
-        return self.total_fiat, self.total_crypto
+        # Set multi-index: API, Asset
+        self.balance.set_index(['API', 'Asset'], inplace=True)
 
+        # Setting price_c & price_f for Etherscan
+        if 'Etherscan' in self.balance.index:
+            if not ref_api:
+                ref_api = 'Kraken'
+                print('WARNING - reference API set to Kraken')
+            # Check ref_api exists in dataframe
+            else:
+                assert ref_api in self.balance.index
 
-    def print_balance(self, ref_api: str=''):
+            self.balance.loc[('Etherscan', 'ETH')]['price_f'] = self.balance.loc[(ref_api, 'ETH')]['price_f']
+            self.balance.loc[('Etherscan', 'ETH')]['price_c'] = 1
+            
+        # Add Fiat and Crypto Values columns
+        self.balance['value_f'] = self.balance['Amount'] * self.balance['price_f']
+        self.balance['value_c'] = self.balance['Amount'] * self.balance['price_c']
+
+        # Get total value in base fiat and digital asset
+        self.total_fiat = self.balance['value_f'].sum()
+        self.total_crypto = self.balance['value_c'].sum()
+
+        return self.balance
+
+    def print_balance(self, ref_api: str='') -> None:
         ''' Print a pretty balance. 
 
         Args:
@@ -84,32 +93,28 @@ class Portfolio(object):
         '''
         format = ',.2f'
 
-        # Checks
-        if 'Etherscan' in self.balance.keys():
-            assert ref_api
+        # Check balance exists
+        if self.balance.empty:
+            self.get_balance(ref_api)
 
-        if ref_api:
-            ref_api = ref_api.capitalize()
-            assert ref_api in self.balance
-
-        if not hasattr(self, 'total_fiat'):
-            self.get_totals(ref_api)
-
-        # Print balance
+        # Print totals
         print()
         print(f'Date: {datetime.now().strftime("%d/%m/%Y %H:%M:%S")}', end='\n\n')
 
         print(f'Total in {self.base_fiat}: {self.total_fiat:{format}}')
         if self.base_crypto:
             print(f'Total in {self.base_crypto}: {self.total_crypto:{format}}')
+        print()
 
-            if not ref_api:
-                ref_api = 'Kraken'
-                print('WARNING - setting Kraken as reference API', end='\n\n')
-            print(f'{self.base_crypto} price: {self.balance[ref_api][self.base_crypto][1][0][0]:{format}}')
+        # Print every asset
+        self.balance.sort_values('value_f', ascending=False, inplace=True) # Desc sort
 
-        for api, holding in self.balance.items():
-            pass
+        tmp = self.balance.copy()
+        tmp = tmp.loc[tmp['value_f'] > 0.01] # Remove small values
 
+        # Format
+        for col in ['Amount', 'price_f', 'value_f', 'value_c']:
+            tmp[col] = self.balance[col].map('{:,.2f}'.format)
+        tmp['price_c'] = self.balance['price_c'].map('{:,.4f}'.format)
 
-
+        print(tmp, end=2*'\n')
