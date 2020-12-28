@@ -50,7 +50,7 @@ class Api(ABC):
     @staticmethod
     def _balance_to_dataframe(balance: dict, api_name: str) -> pd.DataFrame:
         '''Convert dictionary balance into a pandas dataframe.'''
-        df = pd.DataFrame.from_dict(balance, orient = 'index')
+        df = pd.DataFrame.from_dict(balance, orient = 'index', dtype='float')
         df.reset_index(inplace = True)
         df.columns = Api.col_names
         df['API'] = api_name
