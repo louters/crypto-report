@@ -24,7 +24,8 @@ class Portfolio(object):
         self.base_fiat = base_fiat
 
         base_crypto = base_crypto.upper()
-        assert base_crypto in BASE_CRYPTOS
+        if base_crypto:
+            assert base_crypto in BASE_CRYPTOS
         self.base_crypto = base_crypto
 
         for api_source in apis:
@@ -100,19 +101,17 @@ class Portfolio(object):
         # Print totals
         print()
         print(f'Date: {datetime.now().strftime("%d/%m/%Y %H:%M:%S")}', end='\n\n')
-
         print(f'Total in {self.base_fiat}: {self.total_fiat:{format}}')
         if self.base_crypto:
             print(f'Total in {self.base_crypto}: {self.total_crypto:{format}}')
         print()
 
-        # Print every asset
-        self.balance.sort_values('value_f', ascending=False, inplace=True) # Desc sort
-
-        tmp = self.balance.copy()
-        tmp = tmp.loc[tmp['value_f'] > 0.01] # Remove small values
+        # Desc Sort
+        self.balance.sort_values('value_f', ascending=False, inplace=True)
 
         # Format
+        tmp = self.balance.copy()
+        tmp = tmp.loc[tmp['value_f'] > 0.01] # Remove small values
         for col in ['Amount', 'price_f', 'value_f', 'value_c']:
             tmp[col] = self.balance[col].map('{:,.2f}'.format)
         tmp['price_c'] = self.balance['price_c'].map('{:,.4f}'.format)
