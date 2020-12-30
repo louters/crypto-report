@@ -78,11 +78,15 @@ class Portfolio(object):
             
         # Add Fiat and Crypto Values columns
         self.balance['value_f'] = self.balance['Amount'] * self.balance['price_f']
-        self.balance['value_c'] = self.balance['Amount'] * self.balance['price_c']
+        if self.base_crypto:
+            self.balance['value_c'] = self.balance['Amount'] * self.balance['price_c']
+        else:
+            del self.balance['price_c']
 
         # Get total value in base fiat and digital asset
         self.total_fiat = self.balance['value_f'].sum()
-        self.total_crypto = self.balance['value_c'].sum()
+        if self.base_crypto:
+            self.total_crypto = self.balance['value_c'].sum()
 
         return self.balance
 
@@ -112,8 +116,14 @@ class Portfolio(object):
         # Format
         tmp = self.balance.copy()
         tmp = tmp.loc[tmp['value_f'] > 0.01] # Remove small values
-        for col in ['Amount', 'price_f', 'value_f', 'value_c']:
+
+        col_names = ['Amount', 'price_f', 'value_f', 'value_c']
+        if not self.base_crypto:
+            col_names.pop()
+        for col in col_names:
             tmp[col] = self.balance[col].map('{:,.2f}'.format)
-        tmp['price_c'] = self.balance['price_c'].map('{:,.4f}'.format)
+
+        if self.base_crypto:
+            tmp['price_c'] = self.balance['price_c'].map('{:,.4f}'.format)
 
         print(tmp, end=2*'\n')
