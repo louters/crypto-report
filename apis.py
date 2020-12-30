@@ -58,19 +58,14 @@ class Api(ABC):
 
         return df
         
-        
-    def get_balance(self, base_fiat: str, base_crypto: str = '') -> pd.DataFrame:
-        """ Get balance of holdings from an API source.
-
-        Args:
-        - base_fiat: currency in which the holdings are reported
-        - base_crypto: digital asset in which the holdings are reported
-        """
-        pass
-
     def _nonce(self) -> int:
         """ Nonce counter."""
         return int(1000 * time.time())
+
+    @abstractmethod    
+    def get_balance(self) -> pd.DataFrame:
+        """ Get balance of holdings from an API source."""
+        pass
 
     @abstractmethod
     def _sign(self, data: dict, urlpath: str) -> str:
