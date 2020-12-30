@@ -32,20 +32,24 @@ class Api(ABC):
         - (optional) addr_path: Path to file with addresses (only applicable
           to etherscan and blockchain explorer)
         """
-        try:
-            with open(path) as f:
-                self.key = f.readline().strip()
+        if path:
+            try:
+                with open(path) as f:
+                    self.key = f.readline().strip()
+                    if not addr_path:
+                        self.secret = f.readline().strip()
 
-                if not addr_path:
-                    self.secret = f.readline().strip()
+            except FileNotFoundError:
+                print('Warning: File with key/secret not found')
+                self.key = self.secret = ''
 
-            if addr_path:
+        if addr_path:
+            try:
                 with open(addr_path) as f:
                     self.address = f.readline().strip()
-                
-        except FileNotFoundError:
-            print('Warning: File with key/secret not found')
-            self.key = self.secret = self.address = ''
+            except FileNotFoundError:
+                print('Warning: File with address not found')
+                self.key = self.secret = self.address = ''
 
     @staticmethod
     def _balance_to_dataframe(balance: dict, api_name: str) -> pd.DataFrame:
@@ -182,6 +186,9 @@ class Kraken(Api):
                 prices = [float(price) for price in prices]
                 balance[ticker] = balance[ticker] + prices
                                            
+        if 'XBT' in balance:
+            balance['BTC'] = balance.pop('XBT')
+
         self.balance = Api._balance_to_dataframe(balance, 'Kraken')
 
         return self.balance
@@ -412,7 +419,7 @@ class Etherscan(Api):
         pass
 
     def get_balance(self) -> pd.DataFrame:
-        """ Get amount of ETH at address <addr>."""
+        """ Get amount of ETH at address."""
         params = {
                'module': 'account',
                'action': 'balance',
@@ -430,3 +437,39 @@ class Etherscan(Api):
 
         self.balance = Api._balance_to_dataframe(balance, 'Etherscan')
         return self.balance
+
+class Blockchain(Api):
+    """ Maintain a single session between this machine and Blockchain Explorer.
+    """
+    uri = "https://blockchain.info/q/"
+
+    def __init__(self, addr_path: str = 'btc_addr') -> None:
+        """ Initialize session w/ API and load BTC address.
+
+        Note: At the moment, it allows only one BTC address to be loaded.
+
+        Args:
+        - addr_path: Path to file with Bitcoin Address.
+        """
+
+        self.load_key(None, addr_path)
+        self.session = requests.Session()
+
+    def _sign(self):
+        """ Not applicable for BlockchainExplorer Api."""
+        pass
+
+    def get_balance(self) -> pd.DataFrame:
+        """ Get amount of BTC at address."""
+        method = 'addressbalance'
+        url = f'{Blockchain.uri}{method}/{self.address}'
+        response = self.session.get(url)
+        if not response.ok:
+            response.raise_for_status()
+
+        balance = {}
+        balance['BTC'] = [(float(response.text)/1e8)] + [0, 0]
+
+        self.balance = Api._balance_to_dataframe(balance, 'Blockchain')
+        return self.balance
+
