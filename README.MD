@@ -1,5 +1,5 @@
 ### Overview
-**crypto-report** generates a report for your digital assets balance across different exchanges. In addition, it allows you to query your positions' last price in Fiat and/or Digital Asset base currency.
+**crypto-report** generates a report for your digital assets balance across different exchanges. In addition, it produces a number of risk metrics with regards to the portfolio.
 
 **crypto-report** addresses two issues:
 
@@ -11,30 +11,26 @@
 1. Supported exchanges/protocol addresses:
     * [x] Kraken
     * [x] Bitfinex
-    * [] Bitcoin addresses
+    * [x] Bitcoin addresses
     * [x] Ethereum addresses
 2. Define Base Asset(s) for your report
     * [x] Fiat (mandatory): USD, EUR, GBP
     * [x] Digital Asset (optional): BTC or ETH only.
 
-## Update
-1. Get Balance (value and amount) for each and all positions
-    * [x] Fiat
-    * [x] Digital Asset
-    * [x] Tokens
-
 ## Report
-1. Get Close Price in Base Asset for all positions
-    * [x] Fiat
-    * [x] Digital Asset
-2. Get Balance (value and amount) for each and all positions
+1. Get Amount for each and all positions
     * [x] Fiat
     * [x] Digital Asset
     * [x] Tokens
-3. Provide Portfolio Risk Metrics
+2. Get Price(s) in Base Asset(s) for all positions
+    * [x] Fiat
+    * [x] Digital Asset
+3. Get Value(s) in Base Asset(s) for all positions
+4. Provide Portfolio Risk Metrics
     * [] Worst-day historical VaR
-    * [] 1 and 7-day VaR
-    * [] Historical 7-day historical volatility chart
+    * [] 1 and 7-day historical VaR
+    * [] 20-days moving average volatility for portfolio and per holding in fiat
+    * [] Chart of 20-days moving average volatility per holding in percent
 
 ## Other
 1. Store report in file
@@ -47,7 +43,3 @@
     * Binance
     * Huobi Global
     * Coinbase Pro
-
-## Report
-1. Which type (historical, parametric) of 1 and 7-day VaR?
-
