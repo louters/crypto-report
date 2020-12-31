@@ -48,8 +48,6 @@ class Portfolio(object):
         Args:
         - ref_api: For non-exchange APIs, the prices from ref_api will be used.
         '''
-
-        non_exchange = {'Etherscan', 'Blockchain'}
         
         # Get balance for different APIs
         for api_source in self.api_sources:
