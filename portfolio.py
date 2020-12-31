@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 import pandas as pd
 
-from apis import Kraken, Bitfinex, Etherscan
+from apis import Kraken, Bitfinex, Etherscan, Blockchain
 from datetime import datetime
 
 BASE_FIATS = {'USD', 'EUR', 'GBP'}
 BASE_CRYPTOS = {'BTC', 'ETH'}
-API_SOURCES = {'Kraken', 'Bitfinex', 'Etherscan'}
+API_SOURCES = {'Kraken', 'Bitfinex', 'Etherscan', 'Blockchain'}
 
 
 class Portfolio(object):
@@ -48,11 +48,14 @@ class Portfolio(object):
         Args:
         - ref_api: For non-exchange APIs, the prices from ref_api will be used.
         '''
+
+        non_exchange = {'Etherscan', 'Blockchain'}
         
         # Get balance for different APIs
         for api_source in self.api_sources:
             # Case for exchanges
-            if api_source.__class__.__name__ != 'Etherscan':
+            if api_source.__class__.__name__ != 'Etherscan' \
+            and api_source.__class__.__name__ != 'Blockchain':
                 self.balance = pd.merge(
                         api_source.get_balance(self.base_fiat, self.base_crypto),
                         self.balance, how='outer')
@@ -64,18 +67,32 @@ class Portfolio(object):
         # Set multi-index: API, Asset
         self.balance.set_index(['API', 'Asset'], inplace=True)
 
-        # Setting price_c & price_f for Etherscan
-        if 'Etherscan' in self.balance.index:
+        # Setting price_c & price_f for Etherscan & Blockchain Explorer
+        if 'Etherscan' in self.balance.index \
+        or 'Blockchain' in self.balance.index:
             if not ref_api:
                 ref_api = 'Kraken'
                 print('WARNING - reference API set to Kraken')
             # Check ref_api exists in dataframe
             else:
                 assert ref_api in self.balance.index
+                assert ref_api != 'Etherscan'
+                assert ref_api != 'Blockchain'
 
+        if 'Etherscan' in self.balance.index:
             self.balance.loc[('Etherscan', 'ETH')]['price_f'] = self.balance.loc[(ref_api, 'ETH')]['price_f']
-            self.balance.loc[('Etherscan', 'ETH')]['price_c'] = 1
-            
+            if self.base_crypto == 'ETH':
+                self.balance.loc[('Etherscan', 'ETH')]['price_c'] = 1
+            else:
+                self.balance.loc[('Etherscan', 'ETH')]['price_c'] = self.balance.loc[(ref_api, 'ETH')]['price_c']
+
+        if 'Blockchain' in self.balance.index:
+            self.balance.loc[('Blockchain', 'BTC')]['price_f'] = self.balance.loc[(ref_api, 'BTC')]['price_f']
+            if self.base_crypto == 'BTC':
+                self.balance.loc[('Blockchain', 'BTC')]['price_c'] = 1
+            else:
+                self.balance.loc[('Blockchain', 'BTC')]['price_c'] = self.balance.loc[(ref_api, 'BTC')]['price_c']
+
         # Add Fiat and Crypto Values columns
         self.balance['value_f'] = self.balance['Amount'] * self.balance['price_f']
         if self.base_crypto:
