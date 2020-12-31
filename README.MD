@@ -32,11 +32,6 @@
     * [] 20-days moving average volatility for portfolio and per holding in fiat
     * [] Chart of 20-days moving average volatility per holding in percent
 
-## Other
-1. Store report in file
-2. Store historical close data
-3. Always get ETH and BTC price in Base Asset(s)
-
 # Open questions
 ## Config
 1. Add other exchanges, notably:
