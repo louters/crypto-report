@@ -73,23 +73,13 @@ class Portfolio(object):
                 print('WARNING - reference API set to Kraken')
             # Check ref_api exists in dataframe
             else:
-                assert ref_api in self.balance.index
                 assert ref_api != 'Etherscan'
                 assert ref_api != 'Blockchain'
 
         if 'Etherscan' in self.balance.index:
-            self.balance.loc[('Etherscan', 'ETH')]['price_f'] = self.balance.loc[(ref_api, 'ETH')]['price_f']
-            if self.base_crypto == 'ETH':
-                self.balance.loc[('Etherscan', 'ETH')]['price_c'] = 1
-            else:
-                self.balance.loc[('Etherscan', 'ETH')]['price_c'] = self.balance.loc[(ref_api, 'ETH')]['price_c']
-
+            self.set_address_prices('Etherscan', ref_api)
         if 'Blockchain' in self.balance.index:
-            self.balance.loc[('Blockchain', 'BTC')]['price_f'] = self.balance.loc[(ref_api, 'BTC')]['price_f']
-            if self.base_crypto == 'BTC':
-                self.balance.loc[('Blockchain', 'BTC')]['price_c'] = 1
-            else:
-                self.balance.loc[('Blockchain', 'BTC')]['price_c'] = self.balance.loc[(ref_api, 'BTC')]['price_c']
+            self.set_address_prices('Blockchain', ref_api)
 
         # Add Fiat and Crypto Values columns
         self.balance['value_f'] = self.balance['Amount'] * self.balance['price_f']
@@ -142,3 +132,29 @@ class Portfolio(object):
             tmp['price_c'] = self.balance['price_c'].map('{:,.4f}'.format)
 
         print(tmp, end=2*'\n')
+
+    def set_address_prices(self, api: str='', ref_api: str='') -> None:
+        ''' Set ETH or BTC address price(s)
+
+        Args:
+        - api: Either 'Etherscan' or 'Blockchain' (explorer)
+        - ref_api: the API from which the price will be used
+        '''
+        if api == 'Etherscan':
+            crypto = 'ETH'
+        elif api == 'Blockchain':
+            crypto = 'BTC'
+        else:
+            raise Exception(f'{api} is not implemented.')
+
+        try:
+            self.balance.loc[(api, crypto)]['price_f'] = self.balance.loc[(ref_api, crypto)]['price_f']
+            if self.base_crypto == crypto:
+                    self.balance.loc[(api, crypto)]['price_c'] = 1
+            else:
+                    self.balance.loc[(api, crypto)]['price_c'] = self.balance[(ref_api, crypto)]['price_c']
+        except KeyError:
+            ref_api_session = eval(ref_api)()
+            price_f, price_c = ref_api_session.get_price(crypto, self.base_fiat, self.base_crypto)
+            self.balance.loc[(api, crypto)]['price_f'] = price_f
+            self.balance.loc[(api, crypto)]['price_c'] = price_c
