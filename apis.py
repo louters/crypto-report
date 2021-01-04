@@ -240,6 +240,37 @@ class Kraken(Api):
 
         return (fiat_price, crypto_price)
 
+    def get_history(self, ticker: str, interval: int=1440) -> pd.DataFrame:
+        '''Return historical OHLC data in a dataframe.
+
+        Args:
+        - ticker: asset pair to get OHLC data for
+        - interval: time frame interval in minutes
+        '''
+        assert interval in (1, 5, 15, 30, 60, 240, 1440, 10080, 21600)
+
+        # Clean staking tickers
+        if ticker.endswith('.S'):
+            ticker = ticker[:-2]
+        
+        # Query
+        data = {'pair': ticker, 'interval': interval}
+        res = self.query('OHLC', data)
+
+        res.pop('last', None)
+        
+        # Result to dataframe
+        key = list(res.keys())[0]
+        col_names = ('time', 'open', 'high', 'low', 'close', 'vwap', 'volume', 'count')
+        df = pd.DataFrame(res[key], columns=col_names)
+
+        # Dataframe datetime index
+        df.set_index('time', inplace=True)
+        df.index = pd.to_datetime(df.index, unit='s')
+
+        df = df.astype(float)
+        return df
+
     @staticmethod
     def clean_ticker(ticker: str) -> str:
         """ Clean ticker so we can use it for other API calls."""
@@ -397,6 +428,28 @@ class Bitfinex(Api):
 
         return (fiat_price, crypto_price)
 
+    def get_history(self, ticker: str, interval: str='1D') -> pd.DataFrame:
+        '''Return historical OHLC data in a dataframe.
+
+        Args:
+        - ticker: asset pair to get OHLC data for
+        - interval: time frame interval in minutes
+        '''
+        assert interval in ('1m', '5m', '15m', '30m', '1h', '3h', '6h', '12h',
+                            '1D', '7D', '14D', '1M')
+        ticker = 't' + ticker
+        method = f'candles/trade:{interval}:{ticker}/hist'
+        res = self.fetch(method)
+
+        col_names = ('time', 'open', 'close', 'high', 'low', 'volume')
+        df = pd.DataFrame(res, columns=col_names)
+
+        df.set_index('time', inplace=True)
+        df.index = pd.to_datetime(df.index, unit='ms')
+
+        df = df.astype(float)
+        df.sort_index(inplace=True)
+        return df
 
 class Etherscan(Api):
     """ Maintain a single session between this machine and Etherscan. """
