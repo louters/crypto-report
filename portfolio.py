@@ -4,7 +4,7 @@ import pandas as pd
 from apis import Kraken, Bitfinex, Etherscan, Blockchain
 from datetime import datetime
 
-BASE_FIATS = {'USD', 'EUR', 'GBP'}
+BASE_FIATS = {'USD', 'EUR'}
 BASE_CRYPTOS = {'BTC', 'ETH'}
 API_SOURCES = {'Kraken', 'Bitfinex', 'Etherscan', 'Blockchain'}
 
@@ -175,7 +175,7 @@ class Portfolio(object):
             self.balance.loc[(api, crypto)]['price_f'] = price_f
             self.balance.loc[(api, crypto)]['price_c'] = price_c
 
-    def get_risk(self, ref_api: str='') -> None:
+    def get_risk(self, ref_api: str) -> None:
         ''' Print a set of risk measures of portfolio.
 
         N.B.: No backfilling is performed.
