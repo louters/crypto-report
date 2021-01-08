@@ -27,10 +27,11 @@
     * [x] Digital Asset
 3. Get Value(s) in Base Asset(s) for all positions
 4. Provide Portfolio Risk Metrics
-    * [] Worst-day historical VaR
-    * [] 1 and 7-day historical VaR
-    * [] 20-days moving average volatility for portfolio and per holding in fiat
-    * [] Chart of 20-days moving average volatility per holding in percent
+    * [x] Worst and best days and weeks
+    * [x] 1 and 7-day historical Expected Shortfall
+    * [x] Last 20 days volatility for portfolio in fiat
+    * [x] Last 20 days volatility per holding in fiat and percent
+    * [] Chart of 20-days volatility per holding in percent
 
 # Open questions
 ## Config
