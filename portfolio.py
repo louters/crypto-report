@@ -69,17 +69,18 @@ class Portfolio(object):
         if 'Etherscan' in self.balance.index \
         or 'Blockchain' in self.balance.index:
             if not ref_api:
-                ref_api = 'Kraken'
+                self.ref_api = 'Kraken'
                 print('WARNING - reference API set to Kraken')
             # Check ref_api exists in dataframe
             else:
                 assert ref_api != 'Etherscan'
                 assert ref_api != 'Blockchain'
+                self.ref_api = ref_api
 
         if 'Etherscan' in self.balance.index:
-            self.set_address_prices('Etherscan', ref_api)
+            self.set_address_prices('Etherscan', self.ref_api)
         if 'Blockchain' in self.balance.index:
-            self.set_address_prices('Blockchain', ref_api)
+            self.set_address_prices('Blockchain', self.ref_api)
 
         # Add Fiat and Crypto Values columns
         self.balance['value_f'] = self.balance['Amount'] * self.balance['price_f']
@@ -119,8 +120,7 @@ class Portfolio(object):
         self.balance.sort_values('value_f', ascending=False, inplace=True)
 
         # Format
-        tmp = self.balance.copy()
-        tmp = tmp.loc[tmp['value_f'] > 0.01] # Remove small values
+        tmp = self.get_simple_balance().copy()
 
         col_names = ['Amount', 'price_f', 'value_f', 'value_c']
         if not self.base_crypto:
@@ -133,7 +133,23 @@ class Portfolio(object):
 
         print(tmp, end=2*'\n')
 
-    def set_address_prices(self, api: str='', ref_api: str='') -> None:
+    def get_simple_balance(self, threshold: float=0.01) -> pd.DataFrame:
+        ''' Returns a balance where onlu holdings with a fiat value higher than
+        <treshold> are reported.
+
+        Args:
+        - threshold: minimum fiat value for asset to be reported
+        '''
+        if self.balance.empty:
+            self.get_balance()
+
+        if not hasattr(self, 'simple_balance'):
+            self.simple_balance = self.balance.copy()
+            self.simple_balance = self.balance.loc[
+                                        self.balance['value_f'] >= threshold]
+        return self.simple_balance
+
+    def set_address_prices(self, api: str, ref_api: str) -> None:
         ''' Set ETH or BTC address price(s)
 
         Args:
@@ -158,3 +174,84 @@ class Portfolio(object):
             price_f, price_c = ref_api_session.get_price(crypto, self.base_fiat, self.base_crypto)
             self.balance.loc[(api, crypto)]['price_f'] = price_f
             self.balance.loc[(api, crypto)]['price_c'] = price_c
+
+    def get_risk(self, ref_api: str='') -> None:
+
+        # Checks for ref api
+        if ref_api and not hasattr(self, 'ref_api'):
+            self.ref_api = ref_api
+        elif ref_api and self.ref_api != ref_api:
+            print(f'ref_api is already set as {self.ref_api} and will not be changed')
+        elif not ref_api and not hasattr(self, 'ref_api'):
+            self.ref_api = 'Kraken'
+            print('WARNING - reference API set to Kraken')
+
+        # Check simple balance exists
+        if not hasattr(self, 'simple_balance'):
+            self.get_simple_balance()
+
+        df = pd.DataFrame()
+        # Get historical close data
+        for api, asset in self.simple_balance.index:
+            if api != 'Etherscan' and api != 'Blockchain' \
+            and asset not in BASE_FIATS:
+                ticker = asset + self.base_fiat
+                method = f"{api}()"
+                df[api + '-' + asset] = eval(method).get_history(ticker)['close']
+
+        # DROP NA fo same length of time series (no backfilling)
+        print()
+        print(f'Nbr of rows BEFORE dropping NAs: {len(df.index)}')
+        df.dropna(inplace=True)
+        print(f'Nbr of rows AFTER dropping NAs: {len(df.index)}', end=2*'\n')
+
+        # Compute ret in % (not log returns!) and fiat
+        ret = df.pct_change().dropna()
+        ret_7d = df.pct_change(periods=7).dropna()
+
+        # Compute 20-days daily volatility, not annualized
+        index = pd.MultiIndex.from_tuples((
+                                        idx.split('-') for idx in ret.columns
+                                        ), names = ['API', 'Asset'])
+        vols = pd.DataFrame(ret.iloc[-21:-1].std().copy(), columns=['vol_pct'])
+        vols.index = index
+
+        # Compute 20-days daily volatility in fiat value
+        if 'Etherscan' in self.simple_balance.index:
+            vols.loc[('Etherscan', 'ETH'), :] = vols.loc[(ref_api, 'ETH'), :]
+        if 'Blockchain' in self.simple_balance.index:
+            vols.loc[('Blockchain', 'BTC'), :] = vols.loc[(ref_api, 'BTC'), :]
+
+        vols['vol_fiat'] = vols['vol_pct'] * self.simple_balance['value_f']
+        print(f'Daily volatility over last 20 days: {vols["vol_fiat"].sum():,.2f}')
+        print(vols, end=2*'\n')
+
+        # Compute 1-day and 7-days historical ES at 97.5%
+        if 'Etherscan' in self.simple_balance.index:
+            ret['Etherscan-ETH'] = ret[self.ref_api + '-ETH']
+            ret_7d['Etherscan-ETH'] = ret_7d[self.ref_api + '-ETH']
+        if 'Blockchain' in self.simple_balance.index:
+            ret['Blockchain-BTC'] = ret[self.ref_api + '-BTC']
+            ret_7d['Blockchain-BTC'] = ret_7d[self.ref_api + '-BTC']
+
+        tmp = ret.copy()
+        tmp_7d = ret_7d.copy()
+        for idx in self.simple_balance.index:
+            idx_ret = '-'.join(idx)
+            tmp[idx_ret] = ret[idx_ret] * self.simple_balance.loc[idx, 'value_f']
+            tmp_7d[idx_ret] = ret_7d[idx_ret] * self.simple_balance.loc[idx, 'value_f']
+
+        totals = tmp.sum(axis=1).sort_values()
+        print(f'Worst day: {totals.iloc[0]:,.2f}')
+        print(f'Best day: {totals.iloc[-1]:,.2f}', end=2*'\n')
+        totals_7d = tmp_7d.sum(axis=1).sort_values()
+        print(f'Worst week: {totals_7d.iloc[0]:,.2f}')
+        print(f'Best week: {totals_7d.iloc[-1]:,.2f}', end=2*'\n')
+        
+        es_1d = totals.iloc[:int(len(totals) * 0.025)].mean()
+        print(f'1-day Expected Shortfall @ 97.5%: {es_1d:,.2f}')
+        
+        es_7d = totals_7d.iloc[:int(len(totals_7d) * 0.025)].mean()
+        print(f'7-day Expected Shortfall @ 97.5%: {es_7d:,.2f}', end=2*'\n')
+
+        return vols, ret, tmp
