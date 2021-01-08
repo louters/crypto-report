@@ -176,6 +176,13 @@ class Portfolio(object):
             self.balance.loc[(api, crypto)]['price_c'] = price_c
 
     def get_risk(self, ref_api: str='') -> None:
+        ''' Print a set of risk measures of portfolio.
+
+        N.B.: No backfilling is performed.
+        Args:
+        - ref_api: for non-exchange APIs, the API from which history will
+        downloaded from
+        '''
 
         # Checks for ref api
         if ref_api and not hasattr(self, 'ref_api'):
@@ -226,7 +233,7 @@ class Portfolio(object):
         print(f'Daily volatility over last 20 days: {vols["vol_fiat"].sum():,.2f}')
         print(vols, end=2*'\n')
 
-        # Compute 1-day and 7-days historical ES at 97.5%
+        # Set return values for non-exchange holdings
         if 'Etherscan' in self.simple_balance.index:
             ret['Etherscan-ETH'] = ret[self.ref_api + '-ETH']
             ret_7d['Etherscan-ETH'] = ret_7d[self.ref_api + '-ETH']
@@ -234,6 +241,7 @@ class Portfolio(object):
             ret['Blockchain-BTC'] = ret[self.ref_api + '-BTC']
             ret_7d['Blockchain-BTC'] = ret_7d[self.ref_api + '-BTC']
 
+        # Compute 1-day and 7-days portfolio fiat p&l
         tmp = ret.copy()
         tmp_7d = ret_7d.copy()
         for idx in self.simple_balance.index:
@@ -241,6 +249,7 @@ class Portfolio(object):
             tmp[idx_ret] = ret[idx_ret] * self.simple_balance.loc[idx, 'value_f']
             tmp_7d[idx_ret] = ret_7d[idx_ret] * self.simple_balance.loc[idx, 'value_f']
 
+        # Worst/Best days/weeks
         totals = tmp.sum(axis=1).sort_values()
         print(f'Worst day: {totals.iloc[0]:,.2f}')
         print(f'Best day: {totals.iloc[-1]:,.2f}', end=2*'\n')
@@ -248,10 +257,8 @@ class Portfolio(object):
         print(f'Worst week: {totals_7d.iloc[0]:,.2f}')
         print(f'Best week: {totals_7d.iloc[-1]:,.2f}', end=2*'\n')
         
+        # Expected Shortfall 1-day & 7-days at 97.5%
         es_1d = totals.iloc[:int(len(totals) * 0.025)].mean()
         print(f'1-day Expected Shortfall @ 97.5%: {es_1d:,.2f}')
-        
         es_7d = totals_7d.iloc[:int(len(totals_7d) * 0.025)].mean()
         print(f'7-day Expected Shortfall @ 97.5%: {es_7d:,.2f}', end=2*'\n')
-
-        return vols, ret, tmp
