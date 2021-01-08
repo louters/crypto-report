@@ -14,7 +14,7 @@
     * [x] Bitcoin addresses
     * [x] Ethereum addresses
 2. Define Base Asset(s) for your report
-    * [x] Fiat (mandatory): USD, EUR, GBP
+    * [x] Fiat (mandatory): USD, EUR
     * [x] Digital Asset (optional): BTC or ETH only.
 
 ## Report
@@ -25,6 +25,7 @@
 2. Get Price(s) in Base Asset(s) for all positions
     * [x] Fiat
     * [x] Digital Asset
+    * [x] Tokens
 3. Get Value(s) in Base Asset(s) for all positions
 4. Provide Portfolio Risk Metrics
     * [x] Worst and best days and weeks
