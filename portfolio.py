@@ -208,9 +208,8 @@ class Portfolio(object):
 
         # DROP NA fo same length of time series (no backfilling)
         print()
-        print(f'Nbr of rows BEFORE dropping NAs: {len(df.index)}')
         df.dropna(inplace=True)
-        print(f'Nbr of rows AFTER dropping NAs: {len(df.index)}', end=2*'\n')
+        print(f'History\'s length: {len(df.index)} days', end=2*'\n')
 
         # Compute ret in % (not log returns!) and fiat
         ret = df.pct_change().dropna()
@@ -230,7 +229,8 @@ class Portfolio(object):
             vols.loc[('Blockchain', 'BTC'), :] = vols.loc[(ref_api, 'BTC'), :]
 
         vols['vol_fiat'] = vols['vol_pct'] * self.simple_balance['value_f']
-        print(f'Daily volatility over last 20 days: {vols["vol_fiat"].sum():,.2f}')
+        print(f'Daily volatility over last 20 days: ', end='')
+        print(f'{vols["vol_fiat"].sum():,.2f}', end=2*'\n')
         print(vols, end=2*'\n')
 
         # Set return values for non-exchange holdings
@@ -251,14 +251,25 @@ class Portfolio(object):
 
         # Worst/Best days/weeks
         totals = tmp.sum(axis=1).sort_values()
-        print(f'Worst day: {totals.iloc[0]:,.2f}')
-        print(f'Best day: {totals.iloc[-1]:,.2f}', end=2*'\n')
+        print(f'Worst day ', end='')
+        print(f'({totals.iloc[[0]].index[0]:%d/%m/%Y}): ', end='')
+        print(f'{totals.iloc[0]:,.2f} {self.base_fiat}')
+        print(f'Best day ', end='')
+        print(f'({totals.iloc[[-1]].index[0]:%d/%m/%Y}): ', end='')
+        print(f'{totals.iloc[-1]:,.2f} {self.base_fiat}', end=2*'\n')
+
         totals_7d = tmp_7d.sum(axis=1).sort_values()
-        print(f'Worst week: {totals_7d.iloc[0]:,.2f}')
-        print(f'Best week: {totals_7d.iloc[-1]:,.2f}', end=2*'\n')
+        print(f'Worst week ', end='')
+        print(f'({totals_7d.iloc[[0]].index[0]:%d/%m/%Y}): ', end='')
+        print(f'{totals_7d.iloc[0]:,.2f} {self.base_fiat}')
+        print(f'Best week ', end='')
+        print(f'({totals_7d.iloc[[-1]].index[0]:%d/%m/%Y}): ', end='')
+        print(f'{totals_7d.iloc[-1]:,.2f} {self.base_fiat}', end=2*'\n')
         
         # Expected Shortfall 1-day & 7-days at 97.5%
         es_1d = totals.iloc[:int(len(totals) * 0.025)].mean()
         print(f'1-day Expected Shortfall @ 97.5%: {es_1d:,.2f}')
         es_7d = totals_7d.iloc[:int(len(totals_7d) * 0.025)].mean()
         print(f'7-day Expected Shortfall @ 97.5%: {es_7d:,.2f}', end=2*'\n')
+
+        return totals, totals_7d
