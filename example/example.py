@@ -9,9 +9,12 @@ def main():
            ('Blockchain', 'btc_addr')}
     base_fiat = 'USD'
     base_crypto = 'BTC'
-    p = Portfolio(apis, base_fiat, base_crypto)
-    p.get_balance(ref_api='Kraken')
+    ref_api = 'Bitfinex'
+    
+    p = Portfolio(apis, base_fiat, base_crypto, ref_api)
+    p.get_balance()
     p.print_balance()
+    p.get_risk()
 
 if __name__ == '__main__':
     main()
