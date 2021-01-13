@@ -236,11 +236,12 @@ class Portfolio(object):
         tmp = ret.copy()
         tmp_7d = ret_7d.copy()
         for idx in self.simple_balance.index:
-            idx_ret = '-'.join(idx)
-            tmp[idx_ret] = (
-                ret[idx_ret] * self.simple_balance.loc[idx, 'value_f'])
-            tmp_7d[idx_ret] = (
-                ret_7d[idx_ret] * self.simple_balance.loc[idx, 'value_f'])
+            if idx[1] not in BASE_FIATS:
+                idx_ret = '-'.join(idx)
+                tmp[idx_ret] = (
+                    ret[idx_ret] * self.simple_balance.loc[idx, 'value_f'])
+                tmp_7d[idx_ret] = (
+                    ret_7d[idx_ret] * self.simple_balance.loc[idx, 'value_f'])
 
         # Worst/Best days/weeks
         totals = tmp.sum(axis=1).sort_values()
