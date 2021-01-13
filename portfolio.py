@@ -36,6 +36,10 @@ class Portfolio(object):
         if ref_api:
             self.ref_api = ref_api.capitalize()
             assert self.ref_api in API_SOURCES
+        else:
+            print('WARNING - ref_api not set')
+            print('ref_api set by default to Kraken')
+            self.ref_api = 'Kraken'
 
         # Initialize each API (one file only)
         api_sources = [eval(api[0].capitalize())(api[1]) 
