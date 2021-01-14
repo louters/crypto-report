@@ -209,7 +209,7 @@ class Kraken(Api):
         # Handle when ticker is fiat
         if ticker in ('EUR', 'USD'):
             if base_crypto:
-                return 1, 1
+                return 1, 0
             else:
                 return 1, 0
 
@@ -394,7 +394,7 @@ class Bitfinex(Api):
         # Handle when ticker is fiat
         if ticker in ('EUR', 'USD'):
             if base_crypto:
-                return 1, 1
+                return 1, 0
             else:
                 return 1, 0
 
